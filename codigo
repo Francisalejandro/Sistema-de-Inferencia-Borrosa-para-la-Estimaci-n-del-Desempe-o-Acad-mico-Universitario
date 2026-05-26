@@ -1,0 +1,374 @@
+import streamlit as st
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+import plotly.graph_objects as go
+
+
+
+# CONFIGURACIÓN
+
+st.set_page_config(
+    page_title="Sistema IA Académico",
+    page_icon="",
+    layout="wide"
+)
+
+
+st.title(
+" Sistema Inteligente de Evaluación Académica"
+)
+
+st.markdown(
+"""
+Proyecto basado en Lógica Difusa
+para estimar el desempeño académico universitario.
+"""
+)
+
+st.divider()
+
+# VARIABLES DIFUSAS
+
+
+asistencia = ctrl.Antecedent(
+np.arange(0,101,1),
+'asistencia'
+)
+
+horas = ctrl.Antecedent(
+np.arange(0,41,1),
+'horas'
+)
+
+estres = ctrl.Antecedent(
+np.arange(0,11,1),
+'estres'
+)
+
+
+desempeno = ctrl.Consequent(
+np.arange(0,101,1),
+'desempeno'
+)
+
+asistencia['baja']=fuzz.trimf(
+asistencia.universe,
+[0,0,50]
+)
+
+
+asistencia['media']=fuzz.trimf(
+asistencia.universe,
+[30,50,70]
+)
+
+
+asistencia['alta']=fuzz.trimf(
+asistencia.universe,
+[60,100,100]
+)
+
+
+
+# HORAS
+
+
+horas['pocas']=fuzz.trimf(
+horas.universe,
+[0,0,15]
+)
+
+
+horas['moderadas']=fuzz.trimf(
+horas.universe,
+[10,20,30]
+)
+
+
+horas['muchas']=fuzz.trimf(
+horas.universe,
+[25,40,40]
+)
+
+
+
+# ESTRES
+
+
+estres['bajo']=fuzz.trimf(
+estres.universe,
+[0,0,4]
+)
+
+
+estres['medio']=fuzz.trimf(
+estres.universe,
+[3,5,7]
+)
+
+
+estres['alto']=fuzz.trimf(
+estres.universe,
+[6,10,10]
+)
+
+desempeno['bajo']=fuzz.trimf(
+desempeno.universe,
+[0,0,50]
+)
+
+
+desempeno['medio']=fuzz.trimf(
+desempeno.universe,
+[30,50,70]
+)
+
+
+desempeno['alto']=fuzz.trimf(
+desempeno.universe,
+[60,100,100]
+)
+
+
+
+# REGLAS
+
+
+r1=ctrl.Rule(
+asistencia['alta']
+&
+horas['muchas']
+&
+estres['bajo'],
+
+desempeno['alto']
+)
+
+
+
+r2=ctrl.Rule(
+
+asistencia['baja']
+&
+estres['alto'],
+
+desempeno['bajo']
+
+)
+
+
+
+r3=ctrl.Rule(
+
+asistencia['media']
+&
+horas['moderadas'],
+
+desempeno['medio']
+
+)
+
+
+
+r4=ctrl.Rule(
+
+horas['pocas']
+&
+estres['alto'],
+
+desempeno['bajo']
+
+)
+
+
+
+r5=ctrl.Rule(
+
+asistencia['alta']
+&
+estres['alto'],
+
+desempeno['medio']
+
+)
+r6 = ctrl.Rule(
+    asistencia['media']
+    &
+    estres['medio'],
+    desempeno['medio']
+)
+
+r7 = ctrl.Rule(
+    horas['moderadas']
+    &
+    estres['medio'],
+    desempeno['medio']
+)
+
+r8 = ctrl.Rule(
+    asistencia['alta']
+    &
+    horas['moderadas'],
+    desempeno['alto']
+)
+
+
+
+sistema = ctrl.ControlSystem(
+[r1,r2,r3,r4,r5,r6,r7,r8]
+)
+
+sim = ctrl.ControlSystemSimulation(
+sistema
+)
+
+
+# INTERFAZ
+
+
+col1,col2,col3 = st.columns(3)
+
+
+with col1:
+
+    a = st.slider(
+    "Asistencia (%)",
+    0,
+    100,
+    70
+    )
+
+
+with col2:
+
+    h = st.slider(
+    " Horas estudio",
+    0,
+    40,
+    20
+    )
+
+
+with col3:
+
+    e = st.slider(
+    "Estrés",
+    0,
+    10,
+    5
+    )
+
+
+
+if st.button(
+" Analizar estudiante"
+):
+
+
+    sim.input['asistencia']=a
+    sim.input['horas']=h
+    sim.input['estres']=e
+
+
+    sim.compute()
+
+
+    resultado = sim.output[
+    'desempeno'
+    ]
+
+
+    st.divider()
+
+
+    st.subheader(
+    "Resultado"
+    )
+
+
+    st.metric(
+    "Desempeño",
+    f"{resultado:.2f}"
+    )
+
+
+
+    # VELOCÍMETRO
+
+
+    fig = go.Figure(
+    go.Indicator(
+
+        mode="gauge+number",
+
+        value=resultado,
+
+        gauge={
+
+            'axis':{
+            'range':[0,100]
+            },
+
+            'steps':[
+
+                {
+                'range':[0,50],
+                'color':"red"
+                },
+
+                {
+                'range':[50,70],
+                'color':"yellow"
+                },
+
+                {
+                'range':[70,100],
+                'color':"green"
+                }
+
+            ]
+
+        }
+
+    )
+    )
+
+
+    st.plotly_chart(
+    fig
+    )
+
+
+
+    if resultado <50:
+
+        st.error(
+        "Desempeño BAJO"
+        )
+
+        st.write(
+        "Recomendación: aumentar estudio y reducir estrés."
+        )
+
+
+    elif resultado<70:
+
+        st.warning(
+        " Desempeño MEDIO"
+        )
+
+        st.write(
+        "Recomendación: mejorar hábitos académicos."
+        )
+
+
+    else:
+
+        st.success(
+        "Desempeño ALTO"
+        )
+
+        st.write(
+        "Buen equilibrio académico."
+        )
